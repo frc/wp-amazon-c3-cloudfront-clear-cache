@@ -1,0 +1,15 @@
+{
+    "name": "frc/c3-cloudfront-clear-cache",
+    "license": "GPL v3",
+    "description": "This is simple plugin that clear all cloudfront cache if you publish posts.",
+    "type": "wordpress-plugin",
+    "authors": [
+        {
+            "name": "Janne Aalto",
+            "email": "janne.aalto@frantic.com"
+        }
+    ],
+    "require": {
+        "wpackagist-plugin/amazon-web-services": "~1.0.1",
+    }
+}

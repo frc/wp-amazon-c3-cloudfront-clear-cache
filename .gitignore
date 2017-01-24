@@ -1,0 +1,7 @@
+vendor/
+bin/
+tests/
+aws.phar
+phpunit.xml
+.svnignore
+.travis.yml
