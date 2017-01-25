@@ -432,7 +432,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = [];
 
-        $path = $this->get_path(get_post_permalink($post_id));
+        $path = $this->get_path(get_post_permalink($post_id)) . '*';
 
         $parents = get_post_ancestors($post_id);
         $id = ($parents) ? $parents[ count($parents) - 1 ] : $post_id;
