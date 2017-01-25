@@ -91,6 +91,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         add_action('save_post', [$this, 'save_post_invalidation'], 25, 3);
         add_action('wp_update_nav_menu', [$this, 'navigation_invalidation'], 25, 2);
 
+        //@todo: actions for delete_post, trash_post and untrashed_post
+//        add_action('delete_post', [$this, 'post_deleted']);
+//        add_action('trash_post', [$this, 'post_deleted']);
+//        //Re-parse custom fields when a post is restored from trash
+//        add_action('untrashed_post', [$this, 'post_untrashed']);
+
         //fixes
         add_action('template_redirect', [$this, 'template_redirect']);
         add_filter('post_link', [$this, 'post_link_fix'], 10, 3);
