@@ -333,7 +333,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         if (!wp_next_scheduled($hook)) {
 
-            $timestamp = time() * MINUTE_IN_SECONDS * 5;
+            $timestamp = time() + MINUTE_IN_SECONDS * 10;
             wp_schedule_single_event($timestamp, $hook, $args);
 
         }
