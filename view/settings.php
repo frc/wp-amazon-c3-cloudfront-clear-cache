@@ -7,7 +7,7 @@ $prefix = $this->get_plugin_prefix_slug();
 ?>
 <div class="notice is-dismissible c3cf-updated updated inline " <?php echo (!$updated_class) ? 'style="display:none;"' : ''; ?>>
     <p>
-        <?php _e('Cache flushed.', 'c3-cloudfront-clear-cache'); ?>
+        <?php _e('Cache flushed.', 'wp-amazon-c3-cloudfront-clear-cache'); ?>
     </p>
 </div>
 <?php
@@ -26,10 +26,10 @@ $prefix = $this->get_plugin_prefix_slug();
                 <tr class="">
                     <td>
                         <?php if($distribution_id){ ?>
-                        <h4><?php _e('CloudFront Distribution ID:', 'c3-cloudfront-clear-cache') ?></h4>
+                        <h4><?php _e('CloudFront Distribution ID:', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
                         <?php echo $distribution_id; ?>
                         <?php } else { ?>
-                            <h4><?php _e('CloudFront Distribution ID needs to be defined in wp-config.php', 'c3-cloudfront-clear-cache') ?></h4>
+                            <h4><?php _e('CloudFront Distribution ID needs to be defined in wp-config.php', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
                         <?php } ?>
 
                     </td>
@@ -38,7 +38,7 @@ $prefix = $this->get_plugin_prefix_slug();
                     <td>
                         <?php if ($distribution_id){ ?>
                         <p>
-                            <button type="submit" class="button button-primary" ><?php _e('Flush all', 'c3-cloudfront-clear-cache'); ?></button>
+                            <button type="submit" class="button button-primary" ><?php _e('Flush all', 'wp-amazon-c3-cloudfront-clear-cache'); ?></button>
                         </p>
                         <?php } ?>
 

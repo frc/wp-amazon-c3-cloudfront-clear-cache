@@ -13,13 +13,13 @@ $invalidations = $this->list_invalidations();
             <thead>
             <tr>
                 <th colspan='3'>
-                    <h2><?php echo __('CloudFront Invalidation Logs', 'c3-cloudfront-clear-cache'); ?></h2>
+                    <h2><?php echo __('CloudFront Invalidation Logs', 'wp-amazon-c3-cloudfront-clear-cache'); ?></h2>
                 </th>
             </tr>
             <tr>
-                <th><b><?php echo __('Invalidation Start Time (UTC)', 'c3-cloudfront-clear-cache'); ?></b></th>
-                <th><b><?php echo __('Invalidation Status', 'c3-cloudfront-clear-cache'); ?></b></th>
-                <th><b><?php echo __('Invalidation Id', 'c3-cloudfront-clear-cache'); ?></b></th>
+                <th><b><?php echo __('Invalidation Start Time (UTC)', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
+                <th><b><?php echo __('Invalidation Status', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
+                <th><b><?php echo __('Invalidation Id', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
             </tr>
             </thead>
             <tbody>
@@ -38,7 +38,7 @@ $invalidations = $this->list_invalidations();
 
                     <tr>
                         <td colspan="3">
-                            <?php echo __('There is no invalidations', 'c3-cloudfront-clear-cache'); ?>
+                            <?php echo __('There is no invalidations', 'wp-amazon-c3-cloudfront-clear-cache'); ?>
                         </td>
                     </tr>
 

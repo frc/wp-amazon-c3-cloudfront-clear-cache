@@ -61,8 +61,8 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      * @param Amazon_Web_Services $aws
      * @param string|null $slug
      */
-    function __construct($plugin_file_path, $aws, $slug = null) {
-        $this->plugin_slug = (is_null($slug)) ? 'c3-cloudfront-clear-cache' : $slug;
+    function __construct( $plugin_file_path, $aws, $slug = null ) {
+        $this->plugin_slug = (is_null($slug)) ? 'wp-amazon-c3-cloudfront-clear-cache' : $slug;
 
         parent::__construct($plugin_file_path);
 
@@ -75,49 +75,49 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @param string $plugin_file_path
      */
-    function init($plugin_file_path) {
+    function init( $plugin_file_path ) {
         self::$plugin_page = $this->plugin_slug;
-        $this->plugin_title = __('C3 Cloudfront Cache Controller', 'c3-cloudfront-clear-cache');
-        $this->plugin_menu_title = __('CloudFront Cache Controller', 'c3-cloudfront-clear-cache');
+        $this->plugin_title = __('C3 Cloudfront Cache Controller', 'wp-amazon-c3-cloudfront-clear-cache');
+        $this->plugin_menu_title = __('CloudFront Cache Controller', 'wp-amazon-c3-cloudfront-clear-cache');
 
         // Plugin setup
-        add_action('aws_admin_menu', [$this, 'admin_menu']);
-        add_filter('plugin_action_links', [$this, 'plugin_actions_settings_link'], 10, 2);
+        add_action('aws_admin_menu', [ $this, 'admin_menu' ]);
+        add_filter('plugin_action_links', [ $this, 'plugin_actions_settings_link' ], 10, 2);
 
         //cron hook
-        add_action('c3cf_cron_invalidation', [$this, 'cron_invalidation']);
+        add_action('c3cf_cron_invalidation', [ $this, 'cron_invalidation' ]);
 
         //update hook
-        add_action('save_post', [$this, 'save_post_invalidation'], 25, 3);
-        add_action('wp_update_nav_menu', [$this, 'navigation_invalidation'], 25, 2);
+        add_action('save_post', [ $this, 'save_post_invalidation' ], 25, 3);
+        add_action('wp_update_nav_menu', [ $this, 'navigation_invalidation' ], 25, 2);
 
-        //@todo: actions for delete_post, trash_post and untrashed_post
-//        add_action('delete_post', [$this, 'post_deleted']);
-//        add_action('trash_post', [$this, 'post_deleted']);
-//        //Re-parse custom fields when a post is restored from trash
-//        add_action('untrashed_post', [$this, 'post_untrashed']);
+        add_action('acf/save_post', [ $this, 'acf_invalidation' ], 21, 1);
+
+        add_action('before_delete_post', [ $this, 'delete_post_invalidation' ], 10, 1);
+        add_action('trash_post', [ $this, 'delete_post_invalidation' ], 10, 1);
+        add_action('untrashed_post', [ $this, 'post_untrashed_invalidation' ], 10, 1);
 
         //fixes
-        add_action('template_redirect', [$this, 'template_redirect']);
-        add_filter('post_link', [$this, 'post_link_fix'], 10, 3);
-        add_filter('preview_post_link', [$this, 'preview_post_link_fix'], 10, 2);
-        add_filter('the_guid', [$this, 'the_guid']);
+        add_action('template_redirect', [ $this, 'template_redirect' ]);
+        add_filter('post_link', [ $this, 'post_link_fix' ], 10, 3);
+        add_filter('preview_post_link', [ $this, 'preview_post_link_fix' ], 10, 2);
+        add_filter('the_guid', [ $this, 'the_guid' ]);
 
-        load_plugin_textdomain('c3-cloudfront-clear-cache', false, dirname(plugin_basename($plugin_file_path)) . '/languages/');
+        load_plugin_textdomain('wp-amazon-c3-cloudfront-clear-cache', false, dirname(plugin_basename($plugin_file_path)) . '/languages/');
 
         // Register modal scripts and styles
 
     }
 
-    function update_last_invalidation_time(){
+    function update_last_invalidation_time() {
         return update_option('c3cf_last_invalidation_time', time());
     }
 
-    function invalidate_now(){
+    function invalidate_now() {
 
         $last_ran = get_option('c3cf_last_invalidation_time', 0);
 
-        if($last_ran + MINUTE_IN_SECONDS * 10 < time() && !get_option('c3cf_cron_scheduled')){
+        if ($last_ran + MINUTE_IN_SECONDS * 10 < time() && ! get_option('c3cf_cron_scheduled')) {
             return true;
         }
 
@@ -125,13 +125,13 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    function set_cron_scheduled($value = true){
+    function set_cron_scheduled( $value = true ) {
 
         return update_option('c3cf_cron_scheduled', $value);
 
     }
 
-    function set_cron_items($items = []){
+    function set_cron_items( $items = [] ) {
 
         $curr_items = get_option('c3cf_cron_items', []);
         $items = array_unique(array_merge($items, $curr_items));
@@ -140,7 +140,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    function get_cron_items(){
+    function get_cron_items() {
 
         $items = get_option('c3cf_cron_items', []);
 
@@ -148,7 +148,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    function clear_cron_data(){
+    function clear_cron_data() {
 
         update_option('c3cf_cron_scheduled', false);
         update_option('c3cf_cron_items', []);
@@ -193,7 +193,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @return int|mixed|string|WP_Error
      */
-    function get_setting($key, $default = '') {
+    function get_setting( $key, $default = '' ) {
 
         $settings = $this->get_settings();
 
@@ -216,12 +216,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @return string|false
      */
-    public function get_setting_distribution_id($key, $value, $constant = 'DISTRIBUTION_ID') {
+    public function get_setting_distribution_id( $key, $value, $constant = 'DISTRIBUTION_ID' ) {
 
         if ('distribution_id' === $key && defined($constant)) {
             $distribution_id = constant($constant);
 
-            if (!empty($value)) {
+            if (! empty($value)) {
                 // Clear bucket
                 $this->remove_setting('distribution_id');
                 $this->save_settings();
@@ -240,7 +240,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @return Aws\CloudFront\CloudFrontClient
      */
-    function get_c3client($force = false) {
+    function get_c3client( $force = false ) {
 
         if (is_null($this->c3client) || $force) {
 
@@ -261,7 +261,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @param Aws\CloudFront\CloudFrontClient $client
      */
-    public function set_client($client) {
+    public function set_client( $client ) {
         $this->c3client = $client;
     }
 
@@ -269,7 +269,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $lists = [];
 
-        if (!$this->get_setting('distribution_id')) {
+        if (! $this->get_setting('distribution_id')) {
             return $lists;
         }
 
@@ -287,9 +287,9 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    public function create_invalidation_array($items) {
+    public function create_invalidation_array( $items ) {
 
-        if (!$this->get_setting('distribution_id')) {
+        if (! $this->get_setting('distribution_id')) {
             return false;
         }
 
@@ -305,7 +305,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     public function flush_all() {
 
-        $items = ['/*'];
+        $items = [ '/*' ];
         $items = apply_filters('c3cf_modify_flush_all_items', $items);
 
         $invalidation_array = $this->create_invalidation_array($items);
@@ -332,12 +332,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      * @param string $hook
      * @param array $args
      */
-    public function schedule_single_event($hook = 'c3cf_cron_invalidation', $args = []) {
+    public function schedule_single_event( $hook = 'c3cf_cron_invalidation', $args = [] ) {
 
         // Always schedule events on primary blog
         $this->switch_to_blog();
 
-        if (!wp_next_scheduled($hook)) {
+        if (! wp_next_scheduled($hook)) {
 
             $timestamp = time() + MINUTE_IN_SECONDS * 10;
             wp_schedule_single_event($timestamp, $hook, $args);
@@ -354,7 +354,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      * @param null|string $interval Defaults to hook if not supplied
      * @param array $args
      */
-    public function schedule_event($interval = null, $hook = 'c3cf_cron_invalidation', $args = []) {
+    public function schedule_event( $interval = null, $hook = 'c3cf_cron_invalidation', $args = [] ) {
 
         if (is_null($interval)) {
             $interval = $hook;
@@ -363,7 +363,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         // Always schedule events on primary blog
         $this->switch_to_blog();
 
-        if (!wp_next_scheduled($hook)) {
+        if (! wp_next_scheduled($hook)) {
             wp_schedule_event(time(), $interval, $hook, $args);
         }
 
@@ -376,7 +376,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @param string $hook
      */
-    public function clear_scheduled_event($hook = 'c3cf_cron_invalidation') {
+    public function clear_scheduled_event( $hook = 'c3cf_cron_invalidation' ) {
         $timestamp = wp_next_scheduled($hook);
         if ($timestamp) {
             wp_unschedule_event($timestamp, $hook);
@@ -402,12 +402,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @param int|bool $blog_id
      */
-    public function switch_to_blog($blog_id = false) {
-        if (!is_multisite()) {
+    public function switch_to_blog( $blog_id = false ) {
+        if (! is_multisite()) {
             return;
         }
 
-        if (!$blog_id) {
+        if (! $blog_id) {
             $blog_id = defined('BLOG_ID_CURRENT_SITE') ? BLOG_ID_CURRENT_SITE : 1;
         }
 
@@ -425,14 +425,15 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         }
     }
 
-    public function get_path($url){
+    public function get_path( $url ) {
         $parse_url = parse_url($url);
+
         return isset($parse_url['path']) ? $parse_url['path'] : '';
     }
 
-    public function save_post_invalidation($post_id, $post, $update){
+    public function save_post_invalidation( $post_id, $post, $update ) {
 
-        if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id) || !$update || get_post_type($post_id) == 'nav_menu_item') {
+        if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id) || ! $update || get_post_type($post_id) == 'nav_menu_item') {
             return;
         }
 
@@ -443,20 +444,20 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $parents = get_post_ancestors($post_id);
         $id = ($parents) ? $parents[ count($parents) - 1 ] : $post_id;
 
-        if($id != $post_id){
+        if ($id != $post_id) {
             $path = trailingslashit($this->get_path(get_the_permalink($id))) . '*';
         }
 
-        $items = [$path];
+        $items = [ $path ];
 
-        if (!is_int($post_id)) {
+        if (! is_int($post_id)) {
             $items = [];
         }
 
         $items = apply_filters('c3cf_modify_post_save_items', $items, $post_id, $post, $update);
 
         //@todo validate paths
-        if (!empty($items)) {
+        if (! empty($items)) {
 
             $this->invalidate($items);
 
@@ -466,16 +467,67 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    public function navigation_invalidation($menu_id, $menu_data = false) {
+    public function delete_post_invalidation( $post_id ) {
+        if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id) || get_post_type($post_id) == 'nav_menu_item') {
+            return;
+        }
 
-        if (!empty($menu_data)) {
+        $items = [];
+
+        $path = trailingslashit($this->get_path(get_the_permalink($post_id))) . '*';
+
+        $items = [ $path ];
+
+        if (! is_int($post_id)) {
+            $items = [];
+        }
+
+        $items = apply_filters('c3cf_modify_post_delete_items', $items, $post_id);
+
+        //@todo validate paths
+        if (! empty($items)) {
+
+            $this->invalidate($items);
+
+        }
+
+    }
+
+    public function post_untrashed_invalidation( $post_id ) {
+        if (wp_is_post_revision($post_id) || wp_is_post_autosave($post_id) || get_post_type($post_id) == 'nav_menu_item') {
+            return;
+        }
+
+        $items = [];
+
+        $path = trailingslashit($this->get_path(get_the_permalink($post_id))) . '*';
+
+        $items = [ $path ];
+
+        if (! is_int($post_id)) {
+            $items = [];
+        }
+
+        $items = apply_filters('c3cf_modify_post_untrash_items', $items, $post_id);
+
+        //@todo validate paths
+        if (! empty($items)) {
+
+            $this->invalidate($items);
+
+        }
+    }
+
+    public function navigation_invalidation( $menu_id, $menu_data = false ) {
+
+        if (! empty($menu_data)) {
 
             //assume that navigation is on every page
-            $items = ['/*'];
+            $items = [ '/*' ];
             $items = apply_filters('c3cf_modify_navigation_items', $items, $menu_id, $menu_data);
 
             //@todo validate paths
-            if (!empty($items)) {
+            if (! empty($items)) {
 
                 $this->invalidate($items);
 
@@ -489,13 +541,27 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    public function invalidate($items = []){
+    public function acf_invalidation( $post_id ) {
 
-        if (!empty($items)) {
+        $items = apply_filters('c3cf_modify_acf_items', $post_id);
+
+        if (! empty($items)) {
+
+            $this->invalidate($items);
+
+        }
+
+        return true;
+
+    }
+
+    public function invalidate( $items = [] ) {
+
+        if (! empty($items)) {
 
             if ($this->invalidate_now()) {
 
-                $items = array_unique(array_merge($items,  $this->get_cron_items()));
+                $items = array_unique(array_merge($items, $this->get_cron_items()));
                 $invalidation_array = $this->create_invalidation_array($items);
 
                 if ($invalidation_array) {
@@ -523,13 +589,13 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    public function cron_invalidation(){
+    public function cron_invalidation() {
 
         $items = $this->get_cron_items();
 
         $items = apply_filters('c3cf_modify_cron_items', $items);
 
-        if(empty($items)){
+        if (empty($items)) {
             return;
         }
         $invalidation_array = $this->create_invalidation_array($items);
@@ -552,7 +618,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @param Amazon_Web_Services $aws
      */
-    function admin_menu($aws) {
+    function admin_menu( $aws ) {
         $hook_suffix = $aws->add_page($this->get_plugin_page_title(), $this->plugin_menu_title, 'manage_options', $this->plugin_slug, [
             $this,
             'render_page'
@@ -560,7 +626,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         if (false !== $hook_suffix) {
             $this->hook_suffix = $hook_suffix;
-            add_action('load-' . $this->hook_suffix, [$this, 'plugin_load']);
+            add_action('load-' . $this->hook_suffix, [ $this, 'plugin_load' ]);
         }
     }
 
@@ -585,14 +651,14 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             return;
         }
 
-        if (empty($_POST['_wpnonce']) || !wp_verify_nonce(sanitize_key($_POST['_wpnonce']), $this->get_settings_nonce_key())) { // input var okay
-            die(__("Cheatin' eh?", 'c3-cloudfront-clear-cache'));
+        if (empty($_POST['_wpnonce']) || ! wp_verify_nonce(sanitize_key($_POST['_wpnonce']), $this->get_settings_nonce_key())) { // input var okay
+            die(__("Cheatin' eh?", 'wp-amazon-c3-cloudfront-clear-cache'));
         }
 
         do_action('c3cf_pre_flush');
         $response = $this->flush_all();
 
-        $url = $this->get_plugin_page_url(['flushed' => '1']);
+        $url = $this->get_plugin_page_url([ 'flushed' => '1' ]);
         wp_redirect($url);
         exit;
     }
@@ -601,12 +667,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      * Display the main settings page for the plugin
      */
     function render_page() {
-        $this->aws->render_view('header', ['page_title' => $this->get_plugin_page_title(), 'page' => 'c3cf']);
+        $this->aws->render_view('header', [ 'page_title' => $this->get_plugin_page_title(), 'page' => 'c3cf' ]);
 
         $aws_client = $this->aws->get_client();
 
         if (is_wp_error($aws_client)) {
-            $this->render_view('error-fatal', ['message' => $aws_client->get_error_message()]);
+            $this->render_view('error-fatal', [ 'message' => $aws_client->get_error_message() ]);
         } else {
             do_action('c3cf_pre_settings_render');
             $this->render_view('settings');
@@ -624,7 +690,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @return string
      */
-    function get_plugin_details($plugin_path, $suffix = '') {
+    function get_plugin_details( $plugin_path, $suffix = '' ) {
         $plugin_data = get_plugin_data($plugin_path);
         if (empty($plugin_data['Name'])) {
             return basename($plugin_path);
@@ -640,7 +706,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @return string
      */
-    function remove_wp_plugin_dir($path) {
+    function remove_wp_plugin_dir( $path ) {
 
         $plugin = str_replace(WP_PLUGIN_DIR, '', $path);
 
@@ -654,8 +720,8 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         }
     }
 
-    public function post_link_fix($permalink, $post, $leavename) {
-        if (!is_user_logged_in() || !is_admin() || is_feed()) {
+    public function post_link_fix( $permalink, $post, $leavename ) {
+        if (! is_user_logged_in() || ! is_admin() || is_feed()) {
             return $permalink;
         }
         $post = get_post($post);
@@ -665,7 +731,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         return $permalink;
     }
 
-    public function preview_post_link_fix($permalink, $post) {
+    public function preview_post_link_fix( $permalink, $post ) {
         if (is_feed()) {
             return $permalink;
         }
@@ -676,7 +742,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         return $permalink;
     }
 
-    public function the_guid($guid) {
+    public function the_guid( $guid ) {
         $guid = preg_replace('#\?post_date=[\d]+#', '', $guid);
 
         return $guid;
