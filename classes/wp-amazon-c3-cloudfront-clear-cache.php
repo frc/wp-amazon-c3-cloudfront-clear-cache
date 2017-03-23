@@ -134,6 +134,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
     function set_cron_items( $items = [] ) {
 
         $curr_items = get_option('c3cf_cron_items', []);
+
         $items = array_unique(array_merge($items, $curr_items));
 
         return update_option('c3cf_cron_items', $items);
@@ -543,7 +544,9 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     public function acf_invalidation( $post_id ) {
 
-        $items = apply_filters('c3cf_modify_acf_items', $post_id);
+        $items = [];
+
+        $items = apply_filters('c3cf_modify_acf_items', $items, $post_id);
 
         if (! empty($items)) {
 
