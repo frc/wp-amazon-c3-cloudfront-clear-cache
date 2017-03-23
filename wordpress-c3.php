@@ -1,6 +1,6 @@
 <?php
 /*
- * Plugin Name: C3 Cloudfront Cache Controller
+ * Plugin Name: WP Amazon C3 Cloudfront Cache Controller
  * Version: 1.0.0
  * Plugin URI:https://github.com/JanneAalto/wp-amazon-c3-cloudfront-clear-cache
  * Description: Cloudfront cache management based on C3 Cloudfront Cache Controller by AMIMOTO and WP Offload S3 Lite by Delicious Brains
@@ -13,22 +13,8 @@ $GLOBALS['aws_meta']['wp-amazon-c3-cloudfront-clear-cache']['version'] = '1.0.0'
 $GLOBALS['aws_meta']['amazon-web-services']['supported_addon_versions']['wp-amazon-c3-cloudfront-clear-cache'] = '1.0.0';
 $aws_plugin_version_required = '1.0.1';
 
-//function add_c3_cloudfront_clear_cache($addons) {
-//
-//    $addons = $addons + [
-//            'wp-amazon-c3-cloudfront-clear-cache' => [
-//                'title' => __('C3 Cloudfront Cache Controller', 'amazon-web-services'),
-//                'url' => 'https://github.com/JanneAalto/wp-amazon-c3-cloudfront-clear-cache',
-//                'install' => true,
-//            ]
-//        ];
-//
-//    return $addons;
-//}
-//
-//add_action('aws_addons', 'add_c3_cloudfront_clear_cache', 1, 1);
-
 require_once dirname(__FILE__) . '/classes/wp-aws-compatibility-check.php';
+
 global $c3cf_compat_check;
 $c3cf_compat_check = new WP_AWS_Compatibility_Check(
     'C3 Cloudfront Cache Controller',
