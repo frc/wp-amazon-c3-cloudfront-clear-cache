@@ -135,6 +135,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $curr_items = get_option('c3cf_cron_items', []);
 
+        if(empty($curr_items) || $curr_items == ''){
+            $curr_items = [];
+        }
+
         $items = array_unique(array_merge($items, $curr_items));
 
         return update_option('c3cf_cron_items', $items);
