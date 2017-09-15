@@ -131,9 +131,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    function set_cron_items( $items = [] ) {
+    function set_cron_items( $items = [], $lang = null ) {
 
-        $curr_items = get_option('c3cf_cron_items', []);
+        $option_key = $lang ? 'c3cf_cron_items_'.$lang : 'c3cf_cron_items';
+        $curr_items = get_option($option_key, []);
 
         if(empty($curr_items) || $curr_items == ''){
             $curr_items = [];
@@ -141,13 +142,14 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = array_unique(array_merge($items, $curr_items));
 
-        return update_option('c3cf_cron_items', $items);
+        return update_option($option_key, $items);
 
     }
 
-    function get_cron_items() {
+    function get_cron_items( $lang = null ) {
 
-        $items = get_option('c3cf_cron_items', []);
+        $option_key = $lang ? 'c3cf_cron_items_'.$lang : 'c3cf_cron_items';
+        $items = get_option($option_key, []);
 
         return $items;
 
@@ -156,7 +158,15 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
     function clear_cron_data() {
 
         update_option('c3cf_cron_scheduled', false);
-        update_option('c3cf_cron_items', []);
+
+        if ($this->has_multiple_domains()) {
+            foreach ($this->get_all_domain_languages() as $lang) {
+                update_option('c3cf_cron_items_'.$lang, []);
+            }
+        } else {
+            update_option('c3cf_cron_items', []);
+        }
+
         $this->update_last_invalidation_time();
 
         return true;
@@ -198,13 +208,19 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      *
      * @return int|mixed|string|WP_Error
      */
-    function get_setting( $key, $default = '' ) {
+    function get_setting( $key, $default = '', $lang = null ) {
 
         $settings = $this->get_settings();
 
         $value = parent::get_setting($key, $default);
 
         // Bucket
+        if ($lang && $this->has_multiple_domains()) {
+            if (false !== ($distribution_id = $this->get_setting_distribution_id($key, $value, 'DISTRIBUTION_ID_'.strtoupper($lang)))) {
+                return $distribution_id;
+            }
+        }
+
         if (false !== ($distribution_id = $this->get_setting_distribution_id($key, $value))) {
             return $distribution_id;
         }
@@ -236,6 +252,21 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         }
 
         return false;
+    }
+
+    public function get_all_distribution_ids() {
+        $langs = $this->get_all_domain_languages();
+        $ids = array();
+
+        foreach($langs as $lang) {
+            if (!$lang && false !== ($distribution_id = $this->get_setting_distribution_id('distribution_id', ''))) {
+                array_push($ids, $distribution_id);
+            } elseif (false !== ($distribution_id = $this->get_setting_distribution_id('distribution_id', '', 'DISTRIBUTION_ID_'.strtoupper($lang)))) {
+                array_push($ids, $distribution_id);
+            }
+        }
+
+        return $ids;
     }
 
     /**
@@ -274,32 +305,54 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $lists = [];
 
-        if (! $this->get_setting('distribution_id')) {
+        $langs = $this->get_all_domain_languages();
+
+        if (! $this->get_setting('distribution_id', false, $langs[0])) {
             return $lists;
         }
 
         $c3client = $this->get_c3client();
-        $items = $c3client->listInvalidations([
-            'DistributionId' => $this->get_setting('distribution_id'),
-            'MaxItems' => apply_filters('c3_max_invalidation_logs', 25),
-        ]);
+        $invalidations = array();
 
-        if ($items->get('Quantity')) {
-            return $items->get('Items');
+        foreach ($langs as $lang) {
+            $distribution_id = $this->get_setting('distribution_id', false, $lang);
+
+            $items = $c3client->listInvalidations([
+                'DistributionId' => $distribution_id,
+                'MaxItems' => apply_filters('c3_max_invalidation_logs', 25),
+            ]);
+
+            if ($items->get('Quantity')) {
+                foreach($items->get('Items') as $item) {
+                    $item['DistributionId'] = $distribution_id;
+                    array_push($invalidations, $item);
+                }
+            }
+        }
+
+        if (! empty($invalidations)) {
+            usort($invalidations, function($a, $b) {
+                $atime = new DateTime($a['CreateTime']);
+                $btime = new DateTime($b['CreateTime']);
+                if ($atime == $btime) return 0;
+                return $atime > $btime ? -1 : 1;
+            });
+
+            return $invalidations;
         }
 
         return false;
 
     }
 
-    public function create_invalidation_array( $items ) {
+    public function create_invalidation_array( $items, $lang = null ) {
 
-        if (! $this->get_setting('distribution_id')) {
+        if (! $this->get_setting('distribution_id', false, $lang)) {
             return false;
         }
 
         return [
-            'DistributionId' => esc_attr($this->get_setting('distribution_id')),
+            'DistributionId' => esc_attr($this->get_setting('distribution_id', false, $lang)),
             'Paths' => [
                 'Quantity' => count($items),
                 'Items' => $items,
@@ -308,12 +361,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         ];
     }
 
-    public function flush_all() {
+    public function flush_all($lang = null) {
 
         $items = [ '/*' ];
         $items = apply_filters('c3cf_modify_flush_all_items', $items);
 
-        $invalidation_array = $this->create_invalidation_array($items);
+        $invalidation_array = $this->create_invalidation_array($items, $lang);
 
         if ($invalidation_array) {
 
@@ -448,6 +501,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $parents = get_post_ancestors($post_id);
         $id = ($parents) ? $parents[ count($parents) - 1 ] : $post_id;
+        $lang = $this->get_post_lang($post_id);
 
         if ($id != $post_id) {
             $path = trailingslashit($this->get_path(get_the_permalink($id))) . '*';
@@ -464,7 +518,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         //@todo validate paths
         if (! empty($items)) {
 
-            $this->invalidate($items);
+            $this->invalidate($items, $lang);
 
         }
 
@@ -480,6 +534,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $items = [];
 
         $path = trailingslashit($this->get_path(get_the_permalink($post_id))) . '*';
+        $lang = $this->get_post_lang($post_id);
 
         $items = [ $path ];
 
@@ -492,7 +547,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         //@todo validate paths
         if (! empty($items)) {
 
-            $this->invalidate($items);
+            $this->invalidate($items, $lang);
 
         }
 
@@ -506,6 +561,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $items = [];
 
         $path = trailingslashit($this->get_path(get_the_permalink($post_id))) . '*';
+        $lang = $this->get_post_lang($post_id);
 
         $items = [ $path ];
 
@@ -518,7 +574,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         //@todo validate paths
         if (! empty($items)) {
 
-            $this->invalidate($items);
+            $this->invalidate($items, $lang);
 
         }
     }
@@ -534,7 +590,11 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             //@todo validate paths
             if (! empty($items)) {
 
-                $this->invalidate($items);
+                $langs = $this->get_all_domain_languages();
+
+                foreach($langs as $lang) {
+                    $this->invalidate($items, $lang);
+                }
 
             }
 
@@ -552,9 +612,13 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = apply_filters('c3cf_modify_acf_items', $items, $post_id);
 
+        $langs = is_int($post_id) ? array($this->get_post_lang($post_id)) : $this->get_all_domain_languages();
+
         if (! empty($items)) {
 
-            $this->invalidate($items);
+            foreach($langs as $lang) {
+                $this->invalidate($items, $lang);
+            }
 
         }
 
@@ -562,14 +626,14 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
-    public function invalidate( $items = [] ) {
+    public function invalidate( $items = [], $lang = null ) {
 
         if (! empty($items)) {
 
             if ($this->invalidate_now()) {
 
-                $items = array_unique(array_merge($items, $this->get_cron_items()));
-                $invalidation_array = $this->create_invalidation_array($items);
+                $items = array_unique(array_merge($items, $this->get_cron_items($lang)));
+                $invalidation_array = $this->create_invalidation_array($items, $lang);
 
                 if ($invalidation_array) {
 
@@ -578,13 +642,13 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
                     //everything flushed
                     $this->clear_cron_data();
 
-                    return $c3client->createInvalidation($invalidation_array);
+                    return $c3client->createInvalidation($invalidation_array, $lang);
 
                 }
 
             } else {
 
-                $this->set_cron_items($items);
+                $this->set_cron_items($items, $lang);
                 $this->set_cron_scheduled();
                 $this->schedule_single_event();
 
@@ -598,26 +662,50 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     public function cron_invalidation() {
 
-        $items = $this->get_cron_items();
+        $items = array();
+        $multiple_domains = $this->has_multiple_domains();
 
-        $items = apply_filters('c3cf_modify_cron_items', $items);
+        if ($multiple_domains) {
+            foreach ($this->get_all_domain_languages() as $lang) {
+                $items[$lang] = $this->get_cron_items($lang);
+            }
+        } else {
+            $items = $this->get_cron_items();
+        }
+
+        $items = apply_filters('c3cf_modify_cron_items', $items, $multiple_domains);
 
         if (empty($items)) {
             return;
         }
-        $invalidation_array = $this->create_invalidation_array($items);
+
+        if ($multiple_domains) {
+            foreach ($items as $lang=>$lang_items) {
+                if (! empty($lang_items) ) {
+                    $this->create_cron_invalidation($lang_items, $lang);
+                }
+            }
+        } else {
+            $this->create_cron_invalidation($items);
+        }
+
+        return;
+
+    }
+
+    function create_cron_invalidation($items, $lang = null) {
+
+        $invalidation_array = $this->create_invalidation_array($items, $lang);
 
         if ($invalidation_array) {
 
             $c3client = $this->get_c3client();
             $this->clear_cron_data();
 
-            return $c3client->createInvalidation($invalidation_array);
-
+            return $c3client->createInvalidation($invalidation_array, $lang);
         }
 
         return false;
-
     }
 
     /**
@@ -663,7 +751,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         }
 
         do_action('c3cf_pre_flush');
-        $response = $this->flush_all();
+
+        $langs = $this->get_all_domain_languages();
+
+        foreach($langs as $lang) {
+            $response = $this->flush_all($lang);
+        }
 
         $url = $this->get_plugin_page_url([ 'flushed' => '1' ]);
         wp_redirect($url);
@@ -719,6 +812,30 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         return substr($plugin, 1);
 
+    }
+
+    public function has_multiple_domains() {
+        $polylang_settings = get_option('polylang');
+
+        return isset($polylang_settings['force_lang']) && $polylang_settings['force_lang'] == 3;
+    }
+
+    public function get_all_domain_languages() {
+        $langs = array(null);
+
+        if ($this->has_multiple_domains() && isset(get_option('polylang')['domains'])) {
+            $langs = array();
+
+            foreach (get_option('polylang')['domains'] as $lang=>$domain) {
+                array_push($langs, $lang);
+            }
+        }
+
+        return $langs;
+    }
+
+    function get_post_lang($post_id) {
+        return $this->has_multiple_domains() && function_exists('pll_get_post_language') ? pll_get_post_language($post_id, 'slug') : null;
     }
 
     public function template_redirect() {

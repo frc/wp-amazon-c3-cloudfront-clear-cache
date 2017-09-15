@@ -12,7 +12,7 @@ $invalidations = $this->list_invalidations();
         <table class="wp-list-table widefat plugins">
             <thead>
             <tr>
-                <th colspan='3'>
+                <th colspan='4'>
                     <h2><?php echo __('CloudFront Invalidation Logs', 'wp-amazon-c3-cloudfront-clear-cache'); ?></h2>
                 </th>
             </tr>
@@ -20,6 +20,7 @@ $invalidations = $this->list_invalidations();
                 <th><b><?php echo __('Invalidation Start Time (UTC)', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
                 <th><b><?php echo __('Invalidation Status', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
                 <th><b><?php echo __('Invalidation Id', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
+                <th><b><?php echo __('Distribution Id', 'wp-amazon-c3-cloudfront-clear-cache'); ?></b></th>
             </tr>
             </thead>
             <tbody>
@@ -31,6 +32,7 @@ $invalidations = $this->list_invalidations();
                             <td><?php echo $time; ?></td>
                             <td><?php echo $invalidation['Status']; ?></td>
                             <td><?php echo $invalidation['Id']; ?></td>
+                            <td><?php echo $invalidation['DistributionId']; ?></td>
                         </tr>
                     <?php } ?>
 
@@ -47,8 +49,3 @@ $invalidations = $this->list_invalidations();
 
         </table>
     </div>
-
-
-
-
-
