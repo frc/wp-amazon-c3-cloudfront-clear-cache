@@ -22,12 +22,14 @@ $prefix = $this->get_plugin_prefix_slug();
             <?php do_action('c3cf_form_hidden_fields'); ?>
 
             <table class="form-table">
-                <?php $distribution_id = $this->get_setting('distribution_id'); ?>
+                <?php $distribution_ids = $this->get_all_distribution_ids(); ?>
                 <tr class="">
                     <td>
-                        <?php if($distribution_id){ ?>
-                        <h4><?php _e('CloudFront Distribution ID:', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
-                        <?php echo $distribution_id; ?>
+                        <?php if($distribution_ids){ ?>
+                            <h4><?php _e('CloudFront Distribution IDs:', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
+                            <?php echo implode('<br>', $distribution_ids); ?>
+                        <?php } elseif($this->has_multiple_domains()) { ?>
+                            <h4><?php _e('You have multiple domains specified but no distribution IDs for all of them. Check your configuration.', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
                         <?php } else { ?>
                             <h4><?php _e('CloudFront Distribution ID needs to be defined in wp-config.php', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
                         <?php } ?>
@@ -36,7 +38,7 @@ $prefix = $this->get_plugin_prefix_slug();
                 </tr>
                 <tr>
                     <td>
-                        <?php if ($distribution_id){ ?>
+                        <?php if ($distribution_ids){ ?>
                         <p>
                             <button type="submit" class="button button-primary" ><?php _e('Flush all', 'wp-amazon-c3-cloudfront-clear-cache'); ?></button>
                         </p>
@@ -48,7 +50,7 @@ $prefix = $this->get_plugin_prefix_slug();
 
         </form>
     </div>
-    <?php if ($distribution_id){ ?>
+    <?php if ($distribution_ids){ ?>
     <?php $this->render_view('list-invalidations') ?>
     <?php } ?>
 
