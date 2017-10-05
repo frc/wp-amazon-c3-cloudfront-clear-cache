@@ -354,6 +354,67 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             return false;
         }
 
+        if ( is_array( $items ) ) {
+
+            $items = array_unique( $items );
+
+            $wild = array_filter( $items, function ( $value ) {
+
+                if ( strpos( $value, '*' ) !== false ) {
+                    return true;
+                }
+
+                return false;
+
+            } );
+
+            $items = array_diff( $items, $wild );
+
+            if ( is_array( $wild ) && count( $wild ) ) {
+
+                $occurrence = [];
+                foreach ( $wild as $key => $value ) {
+                    $occurrence[ $value ] = substr_count( $value, '/' );
+                }
+
+                arsort( $occurrence );
+
+                $wild = array_keys( $occurrence );
+
+                $wild = array_filter( $wild, function ( $value, $key ) use ( $wild ) {
+
+                    $value = rtrim( $value, '/*' );
+
+                    if ( isset( $wild[ ( $key + 1 ) ] ) ) {
+
+                        $compare = rtrim( $wild[ ( $key + 1 ) ], '/*' );
+
+                        if ( $compare != '' && strpos( $value, $compare ) !== false ) {
+                            return false;
+                        }
+
+                        return true;
+
+                    } else {
+                        return true;
+                    }
+
+                }, ARRAY_FILTER_USE_BOTH );
+
+                if ( end( $wild ) == '/*' || count( $wild ) >= 15 ) {
+                    $wild = [ '/*' ];
+                }
+
+                reset( $wild );
+
+                $wild = array_reverse( $wild );
+
+            }
+
+            $items = array_merge( $wild, $items );
+
+        }
+
         return [
             'DistributionId'  => esc_attr( $this->get_setting( 'distribution_id', false, $lang ) ),
             'Paths'           => [
