@@ -460,10 +460,9 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $this->switch_to_blog();
 
         if ( ! wp_next_scheduled( $hook ) ) {
-
-            $timestamp = time() + MINUTE_IN_SECONDS * 10;
+            //wp-cron is run every 10 minutes with cron, so try to hit every one..
+            $timestamp = time();
             wp_schedule_single_event( $timestamp, $hook, $args );
-
         }
 
         $this->restore_current_blog();
