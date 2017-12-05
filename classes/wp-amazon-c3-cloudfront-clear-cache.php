@@ -317,17 +317,33 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         foreach ( $langs as $lang ) {
             $distribution_id = $this->get_setting( 'distribution_id', false, $lang );
 
-            $items = $c3client->listInvalidations( [
-                'DistributionId' => $distribution_id,
-                'MaxItems'       => apply_filters( 'c3_max_invalidation_logs', 25 ),
-            ] );
+            try {
+                $items = $c3client->listInvalidations( [
+                    'DistributionId' => $distribution_id,
+                    'MaxItems'       => apply_filters( 'c3_max_invalidation_logs', 25 ),
+                ] );
 
-            if ( $items->get( 'Quantity' ) ) {
-                foreach ( $items->get( 'Items' ) as $item ) {
-                    $item['DistributionId'] = $distribution_id;
-                    array_push( $invalidations, $item );
+                if ( $items->get( 'Quantity' ) ) {
+                    foreach ( $items->get( 'Items' ) as $item ) {
+                        $item['DistributionId'] = $distribution_id;
+                        array_push( $invalidations, $item );
+                    }
                 }
+
+            } catch ( Exception $e ) {
+
+                error_log( print_r( '==========', true ) );
+
+                error_log( print_r( 'Caught exception: ' . $e->getMessage() . " Plugin: WP Amazon C3 Cloudfront Cache Controller\n", true ) );
+                error_log( print_r( 'File: plugins/wp-amazon-c3-cloudfront-clear-cache/classes/wp-amazon-c3-cloudfront-clear-cache.php', true ) );
+                error_log( print_r( 'Caller: ' . debug_backtrace()[1]['function'], true ) );
+                error_log( print_r( 'Function: list_invalidations', true ) );
+
+                error_log( print_r( '==========', true ) );
+
             }
+
+
         }
 
         if ( ! empty( $invalidations ) ) {
@@ -440,7 +456,30 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             $this->clear_cron_data();
             $this->clear_scheduled_event();
 
-            return $c3client->createInvalidation( $invalidation_array );
+            try {
+
+                return $c3client->createInvalidation( $invalidation_array );
+
+            } catch ( Exception $e ) {
+
+                error_log( print_r( '==========', true ) );
+
+                error_log( print_r( 'Caught exception: ' . $e->getMessage() . " Plugin: WP Amazon C3 Cloudfront Cache Controller\n", true ) );
+                error_log( print_r( 'File: plugins/wp-amazon-c3-cloudfront-clear-cache/classes/wp-amazon-c3-cloudfront-clear-cache.php', true ) );
+                error_log( print_r( 'Caller: ' . debug_backtrace()[1]['function'], true ) );
+                error_log( print_r( 'Function: flush_all', true ) );
+                error_log( print_r( '$invalidation_array', true ) );
+                error_log( print_r( $invalidation_array, true ) );
+                error_log( print_r( '$items', true ) );
+                error_log( print_r( $items, true ) );
+                error_log( print_r( '$lang', true ) );
+                error_log( print_r( $lang, true ) );
+
+                error_log( print_r( '==========', true ) );
+
+            }
+
+
 
         }
 
@@ -578,7 +617,6 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = apply_filters( 'c3cf_modify_post_save_items', $items, $post_id, $post, $update );
 
-        //@todo validate paths
         if ( ! empty( $items ) ) {
 
             $this->invalidate( $items, $lang );
@@ -607,7 +645,6 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = apply_filters( 'c3cf_modify_post_delete_items', $items, $post_id );
 
-        //@todo validate paths
         if ( ! empty( $items ) ) {
 
             $this->invalidate( $items, $lang );
@@ -634,7 +671,6 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = apply_filters( 'c3cf_modify_post_untrash_items', $items, $post_id );
 
-        //@todo validate paths
         if ( ! empty( $items ) ) {
 
             $this->invalidate( $items, $lang );
@@ -650,7 +686,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             $items = [ '/*' ];
             $items = apply_filters( 'c3cf_modify_navigation_items', $items, $menu_id, $menu_data );
 
-            //@todo validate paths
+
             if ( ! empty( $items ) ) {
 
                 $langs = $this->get_all_domain_languages();
@@ -695,7 +731,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
             if ( $this->invalidate_now() ) {
 
-                $items              = array_unique( array_merge( $items, $this->get_cron_items( $lang ) ) );
+                $items = array_unique( array_merge( $items, $this->get_cron_items( $lang ) ) );
                 $invalidation_array = $this->create_invalidation_array( $items, $lang );
 
                 if ( $invalidation_array ) {
@@ -705,7 +741,29 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
                     //everything flushed
                     $this->clear_cron_data();
 
-                    return $c3client->createInvalidation( $invalidation_array, $lang );
+                    try{
+
+                        return $c3client->createInvalidation( $invalidation_array );
+
+                    } catch ( Exception $e ) {
+
+                        error_log( print_r( '==========', true ) );
+
+                        error_log( print_r( 'Caught exception: ' . $e->getMessage() . " Plugin: WP Amazon C3 Cloudfront Cache Controller\n", true ) );
+                        error_log( print_r( 'File: plugins/wp-amazon-c3-cloudfront-clear-cache/classes/wp-amazon-c3-cloudfront-clear-cache.php', true ) );
+                        error_log( print_r( 'Caller: ' . debug_backtrace()[1]['function'], true ) );
+                        error_log( print_r( 'Function: invalidate', true ) );
+                        error_log( print_r( '$invalidation_array', true ) );
+                        error_log( print_r( $invalidation_array, true ) );
+                        error_log( print_r( '$items', true ) );
+                        error_log( print_r( $items, true ) );
+                        error_log( print_r( '$lang', true ) );
+                        error_log( print_r( $lang, true ) );
+
+                        error_log( print_r( '==========', true ) );
+
+                    }
+
 
                 }
 
@@ -765,7 +823,29 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             $c3client = $this->get_c3client();
             $this->clear_cron_data();
 
-            return $c3client->createInvalidation( $invalidation_array, $lang );
+            try{
+
+                return $c3client->createInvalidation( $invalidation_array );
+
+            } catch ( Exception $e ) {
+
+                error_log( print_r( '==========', true ) );
+
+                error_log( print_r( 'Caught exception: ' . $e->getMessage() . " Plugin: WP Amazon C3 Cloudfront Cache Controller\n", true ) );
+                error_log( print_r( 'File: plugins/wp-amazon-c3-cloudfront-clear-cache/classes/wp-amazon-c3-cloudfront-clear-cache.php', true ) );
+                error_log( print_r( 'Caller: ' . debug_backtrace()[1]['function'], true ) );
+                error_log( print_r( 'Function: create_cron_invalidation', true ) );
+                error_log( print_r( '$invalidation_array', true ) );
+                error_log( print_r( $invalidation_array, true ) );
+                error_log( print_r( '$items', true ) );
+                error_log( print_r( $items, true ) );
+                error_log( print_r( '$lang', true ) );
+                error_log( print_r( $lang, true ) );
+
+                error_log( print_r( '==========', true ) );
+
+            }
+
         }
 
         return false;
