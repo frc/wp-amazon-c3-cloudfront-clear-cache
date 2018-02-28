@@ -109,6 +109,12 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     }
 
+    function flatten(array $array) {
+        $return = array();
+        array_walk_recursive($array, function($a) use (&$return) { $return[] = $a; });
+        return $return;
+    }
+
     function update_last_invalidation_time() {
         return update_option( 'c3cf_last_invalidation_time', time() );
     }
@@ -728,6 +734,8 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
     public function invalidate( $items = [], $lang = null ) {
 
         if ( ! empty( $items ) ) {
+
+            $items = $this->flatten($items);
 
             if ( $this->invalidate_now() ) {
 
