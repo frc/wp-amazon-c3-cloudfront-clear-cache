@@ -28,7 +28,8 @@ $c3cf_compat_check = new WP_AWS_Compatibility_Check(
 function c3cf_require_files(){
     $abspath = dirname(__FILE__);
 
-    require_once $abspath . '/classes/wp-amazon-c3-cloudfront-clear-cache.php';
+    include_once $abspath . '/classes/wp-amazon-c3-cloudfront-clear-cache.php';
+    include_once $abspath . '/cli.php';
 
 }
 
@@ -48,7 +49,7 @@ function c3cf_init( $aws ){
 
     c3cf_require_files();
     global $c3cf;
-    $c3cf = new C3_CloudFront_Clear_Cache( __FILE__, $aws );
+    $c3cf = new C3_CloudFront_Clear_Cache(__FILE__, $aws);
 }
 
 add_action('aws_init', 'c3cf_init');
