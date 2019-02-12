@@ -97,6 +97,9 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         add_action( 'trash_post', [ $this, 'delete_post_invalidation' ], 10, 1 );
         add_action( 'untrashed_post', [ $this, 'post_untrashed_invalidation' ], 10, 1 );
 
+        add_action('add_attachment', [$this, 'save_media'], 25, 1);
+        add_action('edit_attachment', [$this, 'save_media'], 25, 1);
+
         //fixes
         add_action( 'template_redirect', [ $this, 'template_redirect' ] );
         add_filter( 'post_link', [ $this, 'post_link_fix' ], 10, 3 );
@@ -627,6 +630,27 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
             $this->invalidate( $items, $lang );
 
+        }
+
+        return true;
+
+    }
+
+    public function save_media($postId) {
+        if (wp_is_post_revision($postId) || wp_is_post_autosave($postId)) {
+            return;
+        }
+
+        $items = [];
+        $path = trailingslashit($this->get_path(get_the_permalink($postId))) . '*';
+        $lang = $this->get_post_lang($postId);
+
+        $paths = [$path];
+
+        $items = apply_filters('c3cf_media_save_items', $paths, $postId);
+
+        if (!empty($items)) {
+            $this->invalidate($items, $lang);
         }
 
         return true;
