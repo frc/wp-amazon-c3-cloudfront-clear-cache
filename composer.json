@@ -16,7 +16,6 @@
         }
     ],
     "require": {
-        "deliciousbrains/wp-amazon-s3-and-cloudfront": "~1.1",
         "wpackagist-plugin/amazon-web-services": "~1.0"
     }
 }
