@@ -277,7 +277,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
                 foreach ($langs as $lang) {
                     $distribution_id = $this->get_setting( 'distribution_id', false, $lang );
-                    array_push($distribution_ids, $distribution_id);
+
+                    if ($distribution_id) {
+                        array_push($distribution_ids, $distribution_id);
+                    }
                 }
             }
 
@@ -287,7 +290,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
             foreach ($langs as $lang) {
                 $distribution_id = $this->get_setting( 'distribution_id', false, $lang );
-                array_push($distribution_ids, $distribution_id);
+
+                if ($distribution_id) {
+                    array_push($distribution_ids, $distribution_id);
+                }
             }
         }
 
