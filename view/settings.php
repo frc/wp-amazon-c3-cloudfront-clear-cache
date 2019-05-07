@@ -25,7 +25,8 @@ $prefix = $this->get_plugin_prefix_slug();
                     <?php } elseif($this->has_multiple_language_domains()) { ?>
                         <h4><?php _e('You have multiple domains specified but no distribution IDs for all of them. Check your configuration.', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
                     <?php } else { ?>
-                        <h4><?php _e('CloudFront Distribution ID needs to be defined in wp-config.php', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
+                        <h4><?php _e('CloudFront Distribution ID(s) need(s) to be defined in wp-config.php.', 'wp-amazon-c3-cloudfront-clear-cache') ?></h4>
+                        <p><?php _e('Check out the documentation especially if you have a multisite and/or separate domains for language versions.', 'wp-amazon-c3-cloudfront-clear-cache') ?></p>
                     <?php } ?>
 
                 </td>
