@@ -6,7 +6,7 @@
             "email": "janne.aalto@frantic.com"
         }
     ],
-    "license": "GPL v3",
+    "license": "MIT",
     "description": "This is simple plugin that clear all cloudfront cache if you publish posts.",
     "type": "wordpress-plugin",
     "repositories": [
