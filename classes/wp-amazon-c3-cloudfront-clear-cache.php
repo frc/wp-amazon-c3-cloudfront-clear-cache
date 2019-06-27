@@ -528,16 +528,11 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      */
     public function schedule_single_event( $hook = 'c3cf_cron_invalidation', $args = [] ) {
 
-        // Always schedule events on primary blog
-        $this->switch_to_blog();
-
         if ( ! wp_next_scheduled( $hook ) ) {
             //wp-cron is run every 10 minutes with cron, so try to hit every one..
             $timestamp = time();
             wp_schedule_single_event( $timestamp, $hook, $args );
         }
-
-        $this->restore_current_blog();
     }
 
     /**
@@ -553,14 +548,9 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             $interval = $hook;
         }
 
-        // Always schedule events on primary blog
-        $this->switch_to_blog();
-
         if ( ! wp_next_scheduled( $hook ) ) {
             wp_schedule_event( time(), $interval, $hook, $args );
         }
-
-        $this->restore_current_blog();
 
     }
 
@@ -573,18 +563,6 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $timestamp = wp_next_scheduled( $hook );
         if ( $timestamp ) {
             wp_unschedule_event( $timestamp, $hook );
-        }
-
-        if ( is_multisite() ) {
-            // Always clear schedule events on primary blog
-            $this->switch_to_blog();
-
-            $timestamp = wp_next_scheduled( $hook );
-            if ( $timestamp ) {
-                wp_unschedule_event( $timestamp, $hook );
-            }
-
-            $this->restore_current_blog();
         }
     }
 
