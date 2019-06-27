@@ -445,13 +445,19 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
                 }, ARRAY_FILTER_USE_BOTH );
 
                 if ( end( $wild ) == '/*' || count( $wild ) >= 15 ) {
-                    $wild = [ '/*' ];
+                    $wild = [ '/*', '/' ];
                 }
 
                 reset( $wild );
 
                 $wild = array_reverse( $wild );
 
+            }
+            $temp = $wild;
+            foreach ($temp as $key) {
+                if (strpos($key, '*') !== false) {
+                    $wild[] = rtrim($key, '*');
+                }
             }
 
             $items = array_merge( $wild, $items );
@@ -470,7 +476,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     public function flush_all( $lang = null ) {
 
-        $items = [ '/*' ];
+        $items = [ '/*', '/' ];
         $items = apply_filters( 'c3cf_modify_flush_all_items', $items );
 
         $invalidation_array = $this->create_invalidation_array( $items, $lang );
@@ -624,19 +630,16 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             return;
         }
 
-        $items = [];
-
-        $path = trailingslashit( $this->get_path( get_the_permalink( $post_id ) ) ) . '*';
-
+        $path = trailingslashit( $this->get_path( get_the_permalink( $post_id ) ) );
         $parents = get_post_ancestors( $post_id );
         $id      = ( $parents ) ? $parents[ count( $parents ) - 1 ] : $post_id;
         $lang    = $this->get_post_lang( $post_id );
 
         if ( $id != $post_id ) {
-            $path = trailingslashit( $this->get_path( get_the_permalink( $id ) ) ) . '*';
+            $path = trailingslashit( $this->get_path( get_the_permalink( $id ) ) );
         }
 
-        $items = [ $path ];
+        $items = [ $path, $path.'*' ];
 
         if ( ! is_int( $post_id ) ) {
             $items = [];
@@ -661,10 +664,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = [];
 
-        $path = trailingslashit( $this->get_path( get_the_permalink( $post_id ) ) ) . '*';
+        $path = trailingslashit( $this->get_path( get_the_permalink( $post_id ) ) );
         $lang = $this->get_post_lang( $post_id );
 
-        $items = [ $path ];
+        $items = [ $path, $path.'*' ];
 
         if ( ! is_int( $post_id ) ) {
             $items = [];
@@ -687,10 +690,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         $items = [];
 
-        $path = trailingslashit( $this->get_path( get_the_permalink( $post_id ) ) ) . '*';
+        $path = trailingslashit( $this->get_path( get_the_permalink( $post_id ) ) );
         $lang = $this->get_post_lang( $post_id );
 
-        $items = [ $path ];
+        $items = [ $path, $path.'*' ];
 
         if ( ! is_int( $post_id ) ) {
             $items = [];
@@ -710,7 +713,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         if ( ! empty( $menu_data ) ) {
 
             //assume that navigation is on every page
-            $items = [ '/*' ];
+            $items = [ '/*', '/' ];
             $items = apply_filters( 'c3cf_modify_navigation_items', $items, $menu_id, $menu_data );
 
 
