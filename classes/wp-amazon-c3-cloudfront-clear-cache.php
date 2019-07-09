@@ -425,7 +425,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         if (is_array($wild) && count($wild)) {
 
-            $wild = order($wild);
+            $wild = $this->order($wild);
 
             $wild = array_filter($wild, function ($value, $key) use ($wild) {
                 $value = rtrim($value, '/*');
@@ -461,7 +461,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     function limitItems($items) {
         if (is_array($items) && count($items)) {
-            $items = order($items);
+            $items = $this->order($items);
 
             $base = [];
             foreach ($items as $k => $v) {
@@ -488,6 +488,94 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         return $items;
     }
 
+    function stringToArray($path) {
+        $separator = '/';
+        $path      = trim($path, '/');
+        $pos       = strpos($path, $separator);
+
+        if ($pos === false) {
+            if ($path == '*') {
+                return ['/' . $path];
+            }
+            if ($path == '') {
+                return ['/'];
+            }
+
+            return ['/' . $path . '/'];
+        }
+
+        $key  = substr($path, 0, $pos);
+        $path = substr($path, $pos + 1);
+
+        $result = [
+            '/' . $key => $this->stringToArray($path),
+        ];
+
+        return $result;
+    }
+
+    function countValues($arr, $prefix = '', $vals = []) {
+        ksort($arr, SORT_STRING);
+        $multi = array_filter($arr, function ($k) { return strpos($k, '/') !== false; }, ARRAY_FILTER_USE_KEY);
+        $paths = array_filter($arr, function ($k) { return strpos($k, '/') === false; }, ARRAY_FILTER_USE_KEY);
+
+        if ($prefix != '' && is_array($paths) && count($paths) > 6) {
+            return [$prefix . '/*', $prefix . '/'];
+        }
+
+        if (is_array($multi) && !empty($multi)) {
+            foreach ($multi as $base => $path) {
+                $vals = array_merge($vals, $this->countValues($path, $prefix . $base, $vals));
+            }
+        }
+
+        foreach ($paths as $k => $p) {
+            $paths[$k] = $prefix . $p;
+        }
+
+        $vals = array_unique(array_merge($paths, $vals));
+
+        return $vals;
+
+    }
+
+    function handleWildcards($items) {
+        // remove duplicates
+        $items = array_unique($items);
+        // items containing /*
+        $wild = $this->getWild($items);
+        // remove wildcards from $items
+        $items = array_diff($items, $wild);
+        // limit wildcards to common ancestor
+        $wild = $this->limitWild($wild);
+
+        // remove paths under wildcards
+        foreach ($wild as $w) {
+            $p     = rtrim($w, '/*');
+            $p     = preg_quote($p, '/');
+            $grep  = preg_grep("/^$p/", $items);
+            $items = array_diff($items, $grep);
+        }
+
+        // add wildcards to $items
+        $items = array_merge($wild, $items);
+        // remove duplicates
+        $items = array_unique($items);
+
+        return $items;
+    }
+
+    function combineCommon($items) {
+        $output = [];
+        foreach ($items as $p) {
+            $struct = $this->stringToArray($p);
+            $output = array_merge_recursive($output, $struct);
+        }
+        $items = $this->countValues($output);
+
+        return $items;
+    }
+
     public function create_invalidation_array( $items, $lang = null ) {
 
         if ( ! $this->get_setting( 'distribution_id', false, $lang ) ) {
@@ -496,17 +584,10 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         if ( is_array( $items ) ) {
 
-            $items = array_unique($items);
-            $wild  = $this->getWild($items);
-            $items = array_diff($items, $wild);
-
-            $items = $this->limitItems($items);
-            $wild2 = $this->getWild($items);
-            $wild  = array_unique(array_merge($wild, $wild2));
-            $wild  = $this->limitWild($wild);
-
-            $items = array_merge($wild, $items);
-            $items = array_unique($items);
+            $items = $this->handleWildcards($items);
+            $items = $this->combineCommon($items);
+            // do this again with the result from combine
+            $items = $this->handleWildcards($items);
 
         }
 
