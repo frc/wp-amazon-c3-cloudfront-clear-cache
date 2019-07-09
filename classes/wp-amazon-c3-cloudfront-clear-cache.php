@@ -391,6 +391,103 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         return $invalidations;
     }
 
+    function getWild($items) {
+
+        if (empty($items)) {
+            return [];
+        }
+        $wild = array_filter($items, function ($value) {
+            if (strpos($value, '*') !== false) {
+                return true;
+            }
+
+            return false;
+        });
+
+        return $wild;
+    }
+
+    function order($items) {
+        $occurrence = [];
+        asort($items);
+
+        foreach ($items as $key => $value) {
+            $occurrence[$value] = substr_count($value, '/');
+        }
+
+        arsort($occurrence);
+        $items = array_keys($occurrence);
+
+        return $items;
+    }
+
+    function limitWild($wild) {
+
+        if (is_array($wild) && count($wild)) {
+
+            $wild = order($wild);
+
+            $wild = array_filter($wild, function ($value, $key) use ($wild) {
+                $value = rtrim($value, '/*');
+                if (isset($wild[($key + 1)])) {
+                    $compare = rtrim($wild[($key + 1)], '/*');
+                    if ($compare != '' && strpos($value, $compare) !== false) {
+                        return false;
+                    }
+
+                    return true;
+                } else {
+                    return true;
+                }
+            }, ARRAY_FILTER_USE_BOTH);
+
+            if (end($wild) == '/*' || count($wild) >= 15) {
+                $wild = ['/*', '/'];
+            }
+
+            reset($wild);
+            $wild = array_reverse($wild);
+        }
+
+        $temp = $wild;
+        foreach ($temp as $key) {
+            if (strpos($key, '*') !== false) {
+                $wild[] = rtrim($key, '*');
+            }
+        }
+
+        return $wild;
+    }
+
+    function limitItems($items) {
+        if (is_array($items) && count($items)) {
+            $items = order($items);
+
+            $base = [];
+            foreach ($items as $k => $v) {
+                $path = explode('/', $v);
+                $path = array_values(array_filter($path));
+                if (!empty($path)) {
+                    $base[] = $path[0];
+                }
+            }
+            $base = array_values(array_unique($base));
+
+            foreach ($base as $p) {
+                $grep  = preg_grep("/^\/$p/", $items);
+                $count = count($grep);
+                if ($count > 4) {
+                    $items   = array_diff($items, $grep);
+                    $items[] = '/' . $p . '/*';
+                    $items[] = '/' . $p . '/';
+                }
+            }
+
+        }
+
+        return $items;
+    }
+
     public function create_invalidation_array( $items, $lang = null ) {
 
         if ( ! $this->get_setting( 'distribution_id', false, $lang ) ) {
@@ -399,68 +496,17 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         if ( is_array( $items ) ) {
 
-            $items = array_unique( $items );
+            $items = array_unique($items);
+            $wild  = $this->getWild($items);
+            $items = array_diff($items, $wild);
 
-            $wild = array_filter( $items, function ( $value ) {
+            $items = $this->limitItems($items);
+            $wild2 = $this->getWild($items);
+            $wild  = array_unique(array_merge($wild, $wild2));
+            $wild  = $this->limitWild($wild);
 
-                if ( strpos( $value, '*' ) !== false ) {
-                    return true;
-                }
-
-                return false;
-
-            } );
-
-            $items = array_diff( $items, $wild );
-
-            if ( is_array( $wild ) && count( $wild ) ) {
-
-                $occurrence = [];
-                foreach ( $wild as $key => $value ) {
-                    $occurrence[ $value ] = substr_count( $value, '/' );
-                }
-
-                arsort( $occurrence );
-
-                $wild = array_keys( $occurrence );
-
-                $wild = array_filter( $wild, function ( $value, $key ) use ( $wild ) {
-
-                    $value = rtrim( $value, '/*' );
-
-                    if ( isset( $wild[ ( $key + 1 ) ] ) ) {
-
-                        $compare = rtrim( $wild[ ( $key + 1 ) ], '/*' );
-
-                        if ( $compare != '' && strpos( $value, $compare ) !== false ) {
-                            return false;
-                        }
-
-                        return true;
-
-                    } else {
-                        return true;
-                    }
-
-                }, ARRAY_FILTER_USE_BOTH );
-
-                if ( end( $wild ) == '/*' || count( $wild ) >= 15 ) {
-                    $wild = [ '/*', '/' ];
-                }
-
-                reset( $wild );
-
-                $wild = array_reverse( $wild );
-
-            }
-            $temp = $wild;
-            foreach ($temp as $key) {
-                if (strpos($key, '*') !== false) {
-                    $wild[] = rtrim($key, '*');
-                }
-            }
-
-            $items = array_merge( $wild, $items );
+            $items = array_merge($wild, $items);
+            $items = array_unique($items);
 
         }
 
