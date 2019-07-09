@@ -476,7 +476,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             foreach ($base as $p) {
                 $grep  = preg_grep("/^\/$p/", $items);
                 $count = count($grep);
-                if ($count > 4) {
+                if ($count > 15) {
                     $items   = array_diff($items, $grep);
                     $items[] = '/' . $p . '/*';
                     $items[] = '/' . $p . '/';
@@ -485,7 +485,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         }
 
-        return $items;
+        return array_unique($items);
     }
 
     function stringToArray($path) {
@@ -519,7 +519,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $multi = array_filter($arr, function ($k) { return strpos($k, '/') !== false; }, ARRAY_FILTER_USE_KEY);
         $paths = array_filter($arr, function ($k) { return strpos($k, '/') === false; }, ARRAY_FILTER_USE_KEY);
 
-        if ($prefix != '' && is_array($paths) && count($paths) > 6) {
+        if ($prefix != '' && is_array($paths) && count($paths) > 10) {
             return [$prefix . '/*', $prefix . '/'];
         }
 
@@ -587,6 +587,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
             $items = $this->handleWildcards($items);
             $items = $this->combineCommon($items);
             // do this again with the result from combine
+            $items = $this->limitItems($items);
             $items = $this->handleWildcards($items);
 
         }
