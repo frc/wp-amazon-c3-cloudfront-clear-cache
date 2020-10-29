@@ -489,6 +489,11 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
     }
 
     function stringToArray($path) {
+
+        $tail = '/';
+        if(pathinfo($path, PATHINFO_EXTENSION)) {
+            $tail = '';
+        }
         $separator = '/';
         $path      = trim($path, '/');
         $pos       = strpos($path, $separator);
@@ -501,7 +506,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
                 return ['/'];
             }
 
-            return ['/' . $path . '/'];
+            return ['/' . $path . $tail];
         }
 
         $key  = substr($path, 0, $pos);
