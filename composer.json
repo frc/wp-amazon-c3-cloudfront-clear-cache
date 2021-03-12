@@ -16,6 +16,6 @@
         }
     ],
     "require": {
-        "wpackagist-plugin/amazon-web-services": "~1.0"
+        "frc/amazon-web-services": "1.0.6"
     }
 }
