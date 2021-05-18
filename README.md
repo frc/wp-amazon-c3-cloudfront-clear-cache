@@ -2,7 +2,7 @@
 
 Cloudfront cache management based on C3 Cloudfront Cache Controller by AMIMOTO and WP Offload S3 Lite by Delicious Brains
 
-Needs Amazon Web Services 1.0.6 to work
+Needs Amazon Web Services 1.0.7 to work
 
 set `define('DISTRIBUTION_ID', 'XXXX')` in wp-config.php
 

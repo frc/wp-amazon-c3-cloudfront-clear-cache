@@ -16,6 +16,6 @@
         }
     ],
     "require": {
-        "frc/amazon-web-services": "1.0.6"
+        "frc/amazon-web-services": "1.0.7"
     }
 }
