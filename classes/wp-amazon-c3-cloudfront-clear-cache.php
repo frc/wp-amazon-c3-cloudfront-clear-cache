@@ -6,7 +6,13 @@
  * Date: 23/01/2017
  * Time: 20.45
  */
-class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
+
+
+use Aws\CloudFront\CloudFrontClient;
+use Aws\Exception\AwsException;
+
+
+class C3_CloudFront_Clear_Cache extends AC3_Plugin_Base {
 
     /**
      * @var Amazon_Web_Services
@@ -48,6 +54,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      */
     protected $default_tab = '';
 
+
     /**
      * @var string
      */
@@ -81,7 +88,9 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         $this->plugin_menu_title = __( 'CloudFront Cache Controller', 'wp-amazon-c3-cloudfront-clear-cache' );
 
         // Plugin setup
-        add_action( 'aws_admin_menu', [ $this, 'admin_menu' ] );
+        add_action( 'admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'network_admin_menu', array( $this, 'admin_menu' ) );
+		add_action( 'aws_admin_menu', [ $this, 'aws_admin_menu' ] );
         add_filter( 'plugin_action_links', [ $this, 'plugin_actions_settings_link' ], 10, 2 );
 
         //cron hook
@@ -248,7 +257,6 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      * @return string|false
      */
     public function get_setting_distribution_id( $key, $value, $constant = 'DISTRIBUTION_ID' ) {
-
         if ( 'distribution_id' === $key && defined( $constant ) ) {
             $distribution_id = constant( $constant );
 
@@ -313,9 +321,11 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
             $args = [];
 
-            $client = $this->aws->get_client()->get( 'CloudFront', $args );
+ //           $client = $this->aws->get_client()->get( 'CloudFront', $args );
 
-            $this->set_client( $client );
+            $c3client = $this->get_CloudFront_client();
+
+            $this->set_client( $c3client );
 
         }
 
@@ -368,13 +378,17 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
                 'MaxItems'       => apply_filters( 'c3_max_invalidation_logs', 25 ),
             ] );
 
-            if ( $items->get( 'Quantity' ) ) {
-                foreach ( $items->get( 'Items' ) as $item ) {
-                    $item['DistributionId'] = $distribution_id;
-                    array_push( $invalidations, $item );
+            if (isset($items['InvalidationList']))
+            {
+                if ($items['InvalidationList']['Quantity'] > 0)
+                {
+                    foreach ($items['InvalidationList']['Items'] as $item)
+                    {
+                        $item['DistributionId'] = $distribution_id;
+                        array_push( $invalidations, $item );
+                    }
                 }
             }
-
         } catch ( Exception $e ) {
 
             error_log( print_r( '==========', true ) );
@@ -458,6 +472,48 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         return $wild;
     }
+
+    /**
+	 * Allows the AWS client factory to use the IAM role for EC2 instances
+	 * instead of key/secret for credentials
+	 * http://docs.aws.amazon.com/aws-sdk-php/guide/latest/credentials.html#instance-profile-credentials
+	 *
+	 * @return bool
+	 */
+	function use_ec2_iam_roles() {
+		if ( defined( 'AWS_USE_EC2_IAM_ROLE' ) && AWS_USE_EC2_IAM_ROLE ) {
+			return true;
+		}
+
+		return false;
+	}
+
+    function get_CloudFront_client() {
+		if ( $this->needs_access_keys() ) {
+			throw new Exception( sprintf( __( 'You must first <a href="%s">set your AWS access keys</a> to use this addon.', 'amazon-web-services' ), 'admin.php?page=' . $this->plugin_slug ) );
+		}
+
+		if ( is_null( $this->c3client ) ) {
+			$args = array();
+
+			if ( ! $this->use_ec2_iam_roles() ) {
+				$credentials = array(
+					'key'    => $this->get_access_key_id(),
+					'secret' => $this->get_secret_access_key(),
+				);
+			}
+            $credentials         = apply_filters( 'aws_get_client_args', $credentials );
+			$this->client = new CloudFrontClient([
+                'profile' => 'default',
+                'version' =>  'latest',
+                'region'  => 'us-east-1',
+                'debug'  => false,
+                'credentials' => $credentials
+            ]);
+
+		}
+		return $this->client;
+	}
 
     function limitItems($items) {
         if (is_array($items) && count($items)) {
@@ -583,6 +639,7 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
     public function create_invalidation_array( $items, $lang = null ) {
 
+
         if ( ! $this->get_setting( 'distribution_id', false, $lang ) ) {
             return false;
         }
@@ -599,11 +656,13 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         return [
             'DistributionId'  => esc_attr( $this->get_setting( 'distribution_id', false, $lang ) ),
-            'Paths'           => [
-                'Quantity' => count( $items ),
-                'Items'    => $items,
+            'InvalidationBatch' => [
+                'CallerReference' => uniqid(),
+                'Paths'           => [
+                    'Items'    => $items,
+                    'Quantity' => count( $items ),
+                ],
             ],
-            'CallerReference' => uniqid(),
         ];
     }
 
@@ -994,24 +1053,57 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
         return false;
     }
 
-    /**
-     * Add the settings menu item
-     *
-     * @param Amazon_Web_Services $aws
-     */
-    function admin_menu( $aws ) {
-        $hook_suffix = $aws->add_page( $this->get_plugin_page_title(), $this->plugin_menu_title, 'manage_options', $this->plugin_slug, [
-            $this,
-            'render_page'
-        ] );
+	/**
+	 * Add the settings page to the top-level AWS menu item for backwards compatibility.
+	 *
+	 * @param \Amazon_Web_Services $aws Plugin class instance from the amazon-web-services plugin.
+	 */
+	public function aws_admin_menu( $aws ) {
+		$aws->add_page(
+			$this->get_plugin_page_title(),
+			$this->get_plugin_menu_title(),
+			'manage_options',
+			$this->plugin_slug,
+			array( $this, 'render_page' )
+		);
+	}
 
-        if ( false !== $hook_suffix ) {
-            $this->hook_suffix = $hook_suffix;
-            add_action( 'load-' . $this->hook_suffix, [ $this, 'plugin_load' ] );
-        }
-    }
+
+	/**
+	 * Add the settings page to the top-level Settings menu item.
+	 */
+	public function admin_menu() {
+		$this->hook_suffix = add_submenu_page(
+			$this->get_plugin_pagenow(),
+			$this->get_plugin_page_title(),
+			$this->get_plugin_menu_title(),
+			'manage_options',
+			$this->plugin_slug,
+			array( $this, 'render_page' )
+		);
+
+		do_action( 'as3cf_hook_suffix', $this->hook_suffix );
+
+		add_action( 'load-' . $this->hook_suffix, array( $this, 'plugin_load' ) );
+	}
+
+	/**
+	 * Get the plugin title to be used in admin menu
+	 *
+	 * @return string
+	 */
+	function get_plugin_menu_title() {
+		return apply_filters( 'as3cf_settings_menu_title', $this->plugin_menu_title );
+	}
+
 
     function plugin_load() {
+
+        if ( $this->get_plugin_pagenow() !== $GLOBALS['pagenow'] ) {
+			wp_redirect( $this->get_plugin_page_url() );
+			exit;
+		}
+
         $version = $this->get_asset_version();
         $suffix  = $this->get_asset_suffix();
 
@@ -1061,19 +1153,14 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
      * Display the main settings page for the plugin
      */
     function render_page() {
-        $this->aws->render_view( 'header', [ 'page_title' => $this->get_plugin_page_title(), 'page' => 'c3cf' ] );
 
-        $aws_client = $this->aws->get_client();
+        $this->render_view( 'header', [ 'page_title' => $this->get_plugin_page_title(), 'page' => 'c3cf' ] );
 
-        if ( is_wp_error( $aws_client ) ) {
-            $this->render_view( 'error-fatal', [ 'message' => $aws_client->get_error_message() ] );
-        } else {
-            do_action( 'c3cf_pre_settings_render' );
-            $this->render_view( 'settings' );
-            do_action( 'c3cf_post_settings_render' );
-        }
+        do_action( 'c3cf_pre_settings_render' );
+        $this->render_view( 'settings' );
+        do_action( 'c3cf_post_settings_render' );
 
-        $this->aws->render_view( 'footer' );
+        $this->render_view( 'footer' );
     }
 
     /**
@@ -1165,5 +1252,90 @@ class C3_CloudFront_Clear_Cache extends AWS_Plugin_Base {
 
         return $guid;
     }
+
+    	/**
+	 * Whether or not IAM access keys are needed.
+	 *
+	 * Keys are needed if we are not using EC2 roles or not defined/set yet.
+	 *
+	 * @return bool
+	 */
+	public function needs_access_keys() {
+		if ( $this->use_ec2_iam_roles() ) {
+			return false;
+		}
+
+		return ! $this->are_access_keys_set();
+	}
+
+	/**
+	 * Check if access keys are defined either by constants or database
+	 *
+	 * @return bool
+	 */
+	function are_access_keys_set() {
+		return $this->get_access_key_id() && $this->get_secret_access_key();
+	}
+
+    /**
+	 * Get the AWS key from a constant or the settings
+	 *
+	 * Falls back to settings only if neither constant is defined.
+	 *
+	 * @return string
+	 */
+	function get_access_key_id() {
+		if ( $this->are_prefixed_key_constants_set() || $this->are_key_constants_set() ) {
+			if ( defined( 'DBI_AWS_ACCESS_KEY_ID' ) ) {
+				return DBI_AWS_ACCESS_KEY_ID;
+			} elseif ( defined( 'AWS_ACCESS_KEY_ID' ) ) {
+				return AWS_ACCESS_KEY_ID; // Deprecated
+			}
+		} else {
+			return $this->get_setting( 'access_key_id' );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Check if we are using the prefixed constants for the AWS access credentials
+	 *
+	 * @return bool
+	 */
+	function are_prefixed_key_constants_set() {
+		return defined( 'DBI_AWS_ACCESS_KEY_ID' ) || defined( 'DBI_AWS_SECRET_ACCESS_KEY' );
+	}
+
+    /**
+	 * Check if we are using constants for the AWS access credentials
+	 *
+	 * @return bool
+	 */
+	function are_key_constants_set() {
+		return defined( 'AWS_ACCESS_KEY_ID' ) || defined( 'AWS_SECRET_ACCESS_KEY' );
+	}
+
+	/**
+	 * Get the AWS secret from a constant or the settings
+	 *
+	 * Falls back to settings only if neither constant is defined.
+	 *
+	 * @return string
+	 */
+	function get_secret_access_key() {
+		if ( $this->are_prefixed_key_constants_set() || $this->are_key_constants_set() ) {
+			if ( defined( 'DBI_AWS_SECRET_ACCESS_KEY' ) ) {
+				return DBI_AWS_SECRET_ACCESS_KEY;
+			} elseif ( defined( 'AWS_SECRET_ACCESS_KEY' ) ) {
+				return AWS_SECRET_ACCESS_KEY; // Deprecated
+			}
+		} else {
+			return $this->get_setting( 'secret_access_key' );
+		}
+
+		return '';
+	}
+
 
 }
