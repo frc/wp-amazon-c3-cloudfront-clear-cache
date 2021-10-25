@@ -4,6 +4,14 @@
         {
             "name": "Janne Aalto",
             "email": "janne.aalto@frantic.com"
+        },
+        {
+            "name": "Sanna Nygård",
+            "email": "sanna.nygard@frantic.com"
+        },
+        {
+            "name": "Lauri Kallioniemi",
+            "email": "lauri.kallioniemi@frantic.com"
         }
     ],
     "license": "MIT",
@@ -16,6 +24,6 @@
         }
     ],
     "require": {
-        "frc/amazon-web-services": "1.0.7"
+        "aws/aws-sdk-php": "^3.199"
     }
 }
