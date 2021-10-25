@@ -502,7 +502,6 @@ class C3_CloudFront_Clear_Cache extends AC3_Plugin_Base {
             }
             $credentials         = apply_filters( 'aws_get_client_args', $credentials );
             $this->client = new CloudFrontClient([
-                'profile' => 'default',
                 'version' =>  'latest',
                 'region'  => 'us-east-1',
                 'debug'  => false,
