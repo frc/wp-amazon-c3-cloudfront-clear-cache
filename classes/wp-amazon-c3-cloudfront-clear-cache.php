@@ -106,6 +106,8 @@ class C3_CloudFront_Clear_Cache extends AC3_Plugin_Base {
         add_action( 'trash_post', [ $this, 'delete_post_invalidation' ], 10, 1 );
         add_action( 'untrashed_post', [ $this, 'post_untrashed_invalidation' ], 10, 1 );
 
+        add_action( 'gform_after_save_form', [ $this, 'gform_save_invalidation' ], 10, 2 );
+
         //fixes
         add_action( 'template_redirect', [ $this, 'template_redirect' ] );
         add_filter( 'post_link', [ $this, 'post_link_fix' ], 10, 3 );
@@ -919,6 +921,20 @@ class C3_CloudFront_Clear_Cache extends AC3_Plugin_Base {
         }
 
         return true;
+
+    }
+
+    public function gform_save_invalidation( $form, $update ) {
+
+        if ( ! $update ) {
+            return;
+        }
+
+        $langs = $this->get_all_domain_languages();
+
+        foreach ( $langs as $lang ) {
+            $response = $this->flush_all( $lang );
+        }
 
     }
 
